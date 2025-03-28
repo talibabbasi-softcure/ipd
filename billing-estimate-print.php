@@ -1,0 +1,364 @@
+<?php
+	session_start();                                     /* Here session is start */
+	require_once("../codelibrary/inc/variables.php"); /* This file is required for database connection.  */
+	require_once("../codelibrary/inc/functions.php"); /* This file contain all function.  */
+	if(isset($_REQUEST)){ @extract($_REQUEST);}                                  /* This is used for get the request. */
+	validate_user();                                     /* Validate user for open/access this page with login. */
+	/* log4php start here */
+	include('../log4php/Logger.php');
+	Logger::configure('../logger-config.xml');
+	$logger = Logger::getLogger("-Bill Print-");
+	/* log4php end here */
+	$ipd= mysql_query_db("select * from health_ipd where ipdId='$ipdId'");
+	$fipd= mysql_fetch_db($ipd);
+	$ipdFee= mysql_query_db("select * from health_financeipd where ipdId='".$fipd['ipdId']."'");
+	$fipdFee= mysql_fetch_db($ipdFee);
+	$sql_payer=mysql_query_db("select tpa from health_tpa where id='".$fipd['payer']."'");
+	$payer=mysql_fetch_db($sql_payer);
+	$sql=mysql_query_db("select * from health_patient where patientId='".$fipd['patientId']."'");
+	$line=mysql_fetch_db($sql);
+	$user= mysql_query_db("select * from health_user where userId='".$_SESSION['sess_uid']."'");
+	$fuser= mysql_fetch_db($user);
+	$bedNo= mysql_query_db("select * from health_allocation where ipdId='$ipdId'");
+	$fbedNo= mysql_fetch_db($bedNo);
+	$sqldoctor=mysql_query_db("select * from health_doctors where id='".$fipd['doctorId']."'");
+	$linedoctor=mysql_fetch_db($sqldoctor);
+	$sqldeptt=mysql_query_db("select * from health_department where id='".$fipd['depttId']."'");
+	$linedeptt=mysql_fetch_db($sqldeptt);
+?>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<title><?php echo "&nbsp";?></title> <!-- Title-->
+		<link href="../css/style.css" rel="stylesheet" type="text/css"> <!--<?php //echo $_GET['print'] == 1 ? 'print' : 'screen'; ?>.css-->                        <!-- CSS link for design the whole phase-->
+		<link href="../awesome/css/font-awesome.css" rel="stylesheet" type="text/css">     <!-- Font awesome link for use font awesome icon-->
+		<link href="../awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css"> <!-- Font awesome link for use font awesome icon-->
+		<link href="../css/print-setup-billing.css" rel="stylesheet" type="text/css"> 
+		<script src="../ajax.js"></script>
+		<!-- validation css and js start here -->
+		<link rel="stylesheet" href="../validation/css/vstyle.css">
+		<!-- validation css and js end -->
+		<script>
+			function _isNumberKey(evt){
+				var charCode = (evt.which) ? evt.which : event.keyCode
+				if (charCode > 31 && (charCode < 48 || charCode > 57))
+				return false;
+				return true;
+			}
+		</script>
+		<style media="print">
+			@page {
+			size: auto;
+			margin: 0;
+			}
+		</style>
+		<style type="text/css">
+			table { page-break-inside:auto; }
+			tr    { page-break-inside:avoid; page-break-after:auto }
+			thead { display:table-header-group }
+			tfoot { display:table-footer-group }
+		</style>
+	</head>
+	<body onload="myconfig()">
+		<div class="full">
+			<div class="clearfix20"></div>
+			<!--cash patient-->
+			<!--For TPA-->
+			<div class="mauto90">
+				<div class="page-header">
+					<div class="full printHeader border_bottom">
+						<div class="full50" style="display:table; height: 100px;">
+							<span style="display:table-cell; vertical-align: middle;">
+								<?php _printLogo();?>
+							</span>
+						</div>
+						<div class="full50r txt_right printgrey16" style="display:table; height: 100px;">
+							<span style="display:table-cell; vertical-align: middle;">
+								<?php _hospitalAddress();?>
+							</span>
+						</div>
+					</div>
+					<div class="full txt_center bold printgrey16"><?php if($fipd['dayCare']==1){ echo "Day Care Estimate";} else{echo "IPD Estimate";}?> </div>
+					<div class="full border_bottom"></div>
+					<div class="clearfix10"></div>
+					<div class="full printgrey14"><strong>Patient Details-:  UHID: <?php echo $fipd['patientId'];?></strong></div>
+					<!-- <div class="print_left">&nbsp;</div>-->
+					<div class="clearfix10"></div>
+					<div class="full">
+						<div class="full50">
+							<div class="full95">
+								<div class="full printgrey14"><strong>IPD No : </strong> <?php echo $fipd['ipdId'];?></div>
+								<div class="clearfix7"></div>
+								<div class="full printgrey14"><strong>Patient Name :  </strong> <?php echo ucfirst($line['patientInitial']." ".$line['patientName']);?></div>
+								<div class="clearfix7"></div>
+								<div class="full printgrey14"><strong>Father/Guardian :  </strong> <?php echo ucfirst($line['fatherHusInitial']." ".$line['fatherHusName']);?></div>
+								<div class="clearfix7"></div>
+								<div class="full printgrey14"><strong>Age/Gender/Marital : </strong> <?php echo $line['age'].$line['age_type'];?>/<?php echo ucfirst($line['gender']);?>/<?php echo ucfirst($line['marritalStatus']);?></div>
+								<div class="clearfix7"></div>
+								<div class="full printgrey14"><strong>Address : </strong><?php echo $line['address'];?></div>
+								<div class="clearfix7"></div>
+							</div>
+						</div>
+						<div class="full50r">
+							<div class="full95">
+								<div class="full printgrey14"><strong>Print Date :</strong> <?php echo date('d-M-Y',strtotime($today));?></div>
+								<div class="clearfix7"></div>
+								<div class="full printgrey14"><strong>Payer Name : </strong> <?php echo $payer['tpa'];?><strong> Category:</strong> <?php if($fipdFee['billingCategory']==1){echo "Cash";} else { echo "Credit";}?></div>
+								<div class="clearfix7"></div>
+								<div class="full printgrey14"><strong>Department : </strong> <?php echo $linedeptt['depttName'];?></div>
+								<div class="clearfix7"></div>
+								<div class="full printgrey14"><strong>Consultant Doctor : </strong> <?php echo $linedoctor['doctorName'];?></div>
+								<div class="clearfix7"></div>
+								<div class="full printgrey14"><strong>Admission Date: </strong> <?php $datetime = new DateTime($fipd['dateTime'] ); echo $datetime->format( 'd-M-Y ' );  echo date("h:i:sA",strtotime($fipd['postTime'])); ?></div>
+								<div class="clearfix7"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<!--print table---> 
+				<table class="full">
+					<thead>
+						<tr>
+							<td>
+								<!--place holder for the fixed-position header-->
+								<div class="page-header-space"></div>
+							</td>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td> 
+								<div class="full page">
+									<table class="full" style="border-collapse:collapse">
+										<tr class="printgrey14 bold line_hgt10 greyback">
+											<td style="width:5%;" class="border_all txt_center">S.No.</td>
+											<td style="width:10%;" class="border_all txt_center">Code</td>
+											<td style="width:45%;text-align:left;padding-left:5px" class="border_all txt_center">Particular</td>
+											<td style="width:10%;" class="border_all txt_center ">Rate (Rs)</td>
+											<td style="width:5%;" class="border_all txt_center ">Unit</td>
+											<td style="width:15%;" class="border_all txt_center ">Amount (Rs)</td>
+										</tr>
+										<?php
+											$i=1;
+											$totaldue=0;
+											$grossAmount=0;
+											$priority=mysql_query_db("select distinct priority from health_ipdfinalbill where ipdId='$ipdId' and package=0 order by priority ASC");
+											while($allPriority=mysql_fetch_db($priority)){
+												$prioritysql= mysql_query_db("select * from health_priority where priority='".$allPriority['priority']."'");	
+												$priorityline= mysql_fetch_db($prioritysql);
+												$j=1;
+												$chck=mysql_query_db("select * from health_ipdfinalbill where ipdId='$ipdId' and diagnosisId=0 and priority='".$allPriority['priority']."'");
+												while($fchck= mysql_fetch_db($chck)){
+													//FOR SURGEON Name
+													$surgeonId=$fchck['doctorId'];
+													if($surgeonId!=0 && $surgeonId!="")
+													{
+														$sqlSurgeon=mysql_query_db("select * from health_doctors where id='$surgeonId'");
+														$lineSurgeon=mysql_fetch_db($sqlSurgeon);
+														$sqldeptt=mysql_query_db("select * from health_department where id='".$lineSurgeon['depttId']."'");
+														$linedeptt=mysql_fetch_db($sqldeptt);
+													}
+													//to find deppt name of dr if it is dr
+													$dv=mysql_query_db("select * from health_ipdfinalbill where code like 'DV%'	and id='".$fchck['id']."'");		
+													$num_dv=mysql_num_db($dv);	
+													if($num_dv!=0){
+														$ipdHeadId=$fchck['ipdHeadId'];
+														//echo $ipdHeadId;
+														$custipdHeadId=",".$ipdHeadId.",";
+														//echo $custipdHeadId;
+														//echo "select * from health_doctors where ipdVisit like '%$custipdHeadId%'"; echo "<br>";
+														$drId=mysql_query_db("select * from health_doctors where ipdVisit like '%$custipdHeadId%'");
+														$fdrId=mysql_fetch_db($drId);
+														$depttId=$fdrId['depttId'];
+														$deptt= mysql_query_db("select * from health_department where id='$depttId'");
+														$fdeptt= mysql_fetch_db($deptt);
+														$depttName=$fdeptt['depttName'];
+													}
+													else{
+														if(isset($depttName)){
+															unset($depttName);
+														}
+													}
+												?>
+												<?php if($j==1) {?>
+													<tr class="printgrey14 line_hgt15">
+														<td style="width:80%;font-weight:bold;padding-left:10px" colspan="6" class="padd_right20  border_all txt_left"><?php echo $priorityline['head'];?></td>
+													</tr>
+												<?php } ?>
+												<tr class="printgrey14 line_hgt10">
+													<td style="width:5%;" class="border_all txt_center"><?php echo $i;?></td>
+													<td style="width:10%;" class="border_all txt_center"><?php echo $fchck['code'];?></td>
+													<td style="width:45%;text-align:left;padding-left:5px" class="border_all txt_center"><?php echo strtoupper(implode("<br/>", str_split($fchck['headName'],40)));?>  <?php if(isset($depttName)){ echo "(". $depttName. ")";}?> <?php if($surgeonId!=0){ echo "(Dr.".$lineSurgeon['doctorName']."-".$linedeptt['depttName'].")";}?></td>
+													<td style="width:5%;text-align:right;padding-right:10px" class="border_all txt_center"><?php echo $fchck['price'];?></td>
+													<td style="width:5%;" class="border_all txt_center"><?php echo $fchck['quantity'];?></td> 
+													<td style="width:15%;text-align:right;" class="txt_center border_all"><?php echo number_format($fchck['totalPrice'], 2, '.', ',');?></td>
+												</tr>
+												<?php $i++; $j++; $grossAmount=$grossAmount+$fchck['totalPrice'];
+												}
+											}?>
+											<!---investigation starts--->
+											<?php
+												$diagnochck=mysql_query_db("select * from health_patientdiagnosishead where ipdId='$ipdId' order by ipdHeadDate ASC");
+												$dnum=mysql_num_db($diagnochck);
+												if($dnum!=0){
+												?>
+												<tr class="printgrey14 line_hgt15  ">
+													<td style="width:80%;font-weight:bold;" colspan="7" class="padd_right20  border_bottom txt_left">Investigations Charges</td>
+												</tr>
+												<?php
+													while($fdiagnochck= mysql_fetch_db($diagnochck)){
+														$surgeonId=$fdiagnochck['doctorId'];
+														if($surgeonId!=0 && $surgeonId!="")
+														{
+															$sqlSurgeon=mysql_query_db("select * from health_doctors where id='$surgeonId'");
+															$lineSurgeon=mysql_fetch_db($sqlSurgeon);
+															$sqldeptt=mysql_query_db("select * from health_department where id='".$lineSurgeon['depttId']."'");
+															$linedeptt=mysql_fetch_db($sqldeptt);
+														}	
+													?>
+													<tr class="printgrey14 line_hgt10">
+														<td style="width:5%;" class="border_all txt_center"><?php echo $i;?></td>
+														<td style="width:10%;" class="border_all txt_center"><?php echo $fdiagnochck['code'];?></td>
+														<td style="width:40%;text-align:left;padding-left:5px;word-wrap:break-word; white-space: nowrap;" class="border_all txt_center"><?php echo implode("<br/>", str_split($fdiagnochck['headName'],35));?> <?php if($surgeonId!=0){ echo "(Dr.".$lineSurgeon['doctorName'].")";}?></td>
+														<td style="width:5%;text-align:right;padding-right:10px" class="border_all txt_center"><?php echo $fdiagnochck['ipdHeadRate'];?></td>
+														<td style="width:5%;" class="border_all txt_center"><?php echo $fdiagnochck['quantity'];?></td> 
+														<td style="width:20%;text-align:right;" class="txt_center border_all"><?php echo number_format($fdiagnochck['totalPrice'], 2, '.', ',');?></td>
+													</tr>
+													<?php $i++;  $grossAmount=$grossAmount+$fdiagnochck['totalPrice'];
+													}
+												}
+											?>
+											<tr class="printgrey14 line_hgt10 greyback">
+												<td style="width:90%;" colspan="5" class="padd_right20 border_right border_all txt_right">Total Bill Amount (Rs)<br>
+													<?php echo num_to_words($grossAmount);?>
+												</td>
+												<td style="width:10%;text-align:right" class="txt_center border_all"><?php echo number_format($grossAmount, 2, '.', ',');?></td>
+											</tr>
+											<?php 
+												if($num_settl!=0)
+												{?>
+												<tr class="printgrey14 line_hgt10">
+													<td style="width:90%;" colspan="5" class="padd_right20 border_right border_all txt_right">Total Deduction on Settlement (Rs)<br>
+													</td>
+													<td style="width:10%;text-align:right" class="txt_center border_all"><?php echo number_format($totalDeduction, 2, '.', ',');?></td>
+												</tr>
+												<?php
+												}
+												$depositAmount=0;
+												$payment= mysql_query_db("select * from health_payment where ipdId='$ipdId'");
+												while($fpayment=mysql_fetch_db($payment)){
+													$depositAmount=$depositAmount+$fpayment['creditAmount'];
+												}
+											?>
+											<tr class="printgrey14 line_hgt10">
+												<td style="width:90%;" colspan="5" class="padd_right20 border_right border_all txt_right">Amount Paid  (Rs)</td>
+												<td style="width:10%;text-align:right" class="txt_center border_all"><?php if($depositAmount){echo number_format($depositAmount, 2, '.', ',');} else { echo "0.00";}?></td>
+											</tr>
+											<?php
+												$totaldue=$grossAmount-$depositAmount;
+												$netAmount=$totaldue-$totalDeduction;
+											?>
+											<tr class="printgrey14 line_hgt25 bold">
+												<td style="width:90%;" colspan="5" class="padd_right20 border_all txt_right">Balance Payable Amount (Rs)<br>
+													<?php echo num_to_words($netAmount);?>
+												</td>
+												<td style="width:10%;text-align:right" class="txt_center border_all"><?php echo number_format($netAmount, 2, '.', ',');?></td>
+											</tr>
+									</table>
+									<div class="clearfix20"></div>
+									<span class="printgrey14 bold line_hgt10">-:Amount Deposited:-</span>
+									<table cellpadding="0" cellspacing="0" width="80%" style="border-collapse:collapse">
+										<tr class="printgrey14 bold line_hgt10 greyback">
+											<td style="width:10%;" class="border_all txt_center ">S.No.</td>
+											<td style="width:20%;" class="border_all txt_center ">Date</td>
+											<td style="width:15%;" class="border_all txt_center ">Receipt No.</td>
+											<td style="width:25%;" class="border_all txt_center ">Mode</td>
+											<td style="width:25%;" class="border_all txt_center ">Amount (Rs)</td>
+										</tr>
+										<?php
+											$r=1;
+											$paymentDeposit= mysql_query_db("select * from health_payment where ipdId='$ipdId'");
+											while($fpaymentDeposit=mysql_fetch_db($paymentDeposit)){
+												$pDate=$fpaymentDeposit['paymentDate'];
+												$rNo=$fpaymentDeposit['receiptNo'];
+												$amount=$fpaymentDeposit['creditAmount'];
+												$mode=$fpaymentDeposit['paymentMode'];
+												if($pDate=='0000-00-00'){
+													$advDeposit= mysql_query_db("select * from health_ipd_advance where ipdId='$ipdId'");
+													$advDeposit1=mysql_fetch_db($advDeposit);
+													$advDeposit2= mysql_query_db("select * from health_payment_advance where ipdIdAdvance='".$advDeposit1['ipdIdAdvance']."'");
+													while($fadvDeposit=mysql_fetch_db($advDeposit2)){
+														$pDate=$fadvDeposit['paymentDate'];
+														$rNo='Adv/'.$fadvDeposit['receiptNo'];
+														$amount=$fadvDeposit['creditAmount'];
+														$mode=$fadvDeposit['paymentMode'];
+													?>
+													<tr class="printgrey14 line_hgt10">
+														<td style="width:10%;" class="border_all txt_center "><?php echo $r;?></td>
+														<td style="width:20%;" class="border_all txt_center "><?php echo date("d-M-Y",strtotime($pDate));?></td>
+														<td style="width:15%;" class="border_all txt_center "><?php echo $rNo;?></td>
+														<td style="width:25%;" class="border_all txt_center "><?php echo $mode;?> <?php if($fadvDeposit['paymentMode']=='Online'){echo "-".$fadvDeposit['particular'];}?></td>
+														<td style="width:25%;" class="txt_right border_all"><?php echo number_format($amount, 2, '.', ',');?></td>
+													</tr>
+												<?php $r++; } }
+												else{
+												?>	
+												<tr class="printgrey14 line_hgt10">
+													<td style="width:10%;" class="border_all txt_center "><?php echo $r;?></td>
+													<td style="width:20%;" class="border_all txt_center "><?php echo date("d-M-Y",strtotime($pDate));?></td>
+													<td style="width:15%;" class="border_all txt_center ">0<?php echo $rNo;?></td>
+													<td style="width:25%;" class="border_all txt_center "><?php echo $mode;?> <?php if($fpaymentDeposit['paymentMode']=='Online'){echo "-".$fpaymentDeposit['particular'];}?></td>
+													<td style="width:25%;" class="txt_right border_all"><?php echo number_format($amount, 2, '.', ',');?></td>
+												</tr>	
+												<?php	
+												}
+											} ?>
+											<tr class="printgrey14 line_hgt10">
+												<td style="width:25%;" colspan="4" class="border_all txt_right">Total Amount Paid</br>
+													<?php echo num_to_words($depositAmount);?>
+												</td>
+												<td style="width:25%;" class="border_all txt_right "><?php echo number_format($depositAmount, 2, '.', ',');?></td>
+											</tr>
+									</table>
+									<div class="clearfix30"></div>
+									<!---end of td for print table-->
+								</div>
+							</td>
+						</tr>
+					</tbody>
+					<tfoot>
+						<tr>
+							<td>
+								<!--place holder for the fixed-position footer-->
+								<div class="page-footer-space">
+									<div class="full">
+										<div class="clearfix20"></div>
+										<div class="full50 printgrey14"><?php _generateBill();?></div>
+										<div class="full50r printgrey14 txt_right">(<?php echo $fuser['userName'];?>)</div>
+									</div>
+									<div class="full">
+										<div class="full50 printgrey14">
+											Patient/Attendant Signature
+										</div>
+										<div class="full50r printgrey14">
+											<span style="float:right">Authorised Signatory</span>
+										</div>
+									</div>
+								</div>
+							</td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+		</div>
+		<script>
+			function myconfig(){
+				window.print();
+				window.onafterprint = function(){
+					document.location.href = "billing.php?ipdId=<?php echo $ipdId;?>";
+				}
+			}
+		</script>
+	</body>
+</html>
